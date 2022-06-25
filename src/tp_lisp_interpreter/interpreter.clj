@@ -489,7 +489,7 @@
   [l]
   (let [ari (controlar-aridad l 2)]
     (cond (seq? ari) ari
-          (and (not (nil? (first l))) (not (coll? (first l)))) (spy (list '*error* 'list 'expected (first l)))
+          (and (not (nil? (first l))) (not (coll? (first l)))) (list '*error* 'list 'expected (first l))
           (and (not (nil? (second l))) (not (coll? (second l)))) (list '*error* 'list 'expected (second l))
           (and (nil? (first l)) (nil? (second l))) nil
           (and (empty? (first l)) (empty? (second l))) nil
@@ -647,35 +647,33 @@
         :else (list esc amb-local))
   )
 
-; user=> (evaluar-de '(de f (x)) '(x 1))
-; (f (x 1 f (lambda (x))))
-; user=> (evaluar-de '(de f (x) 2) '(x 1))
-; (f (x 1 f (lambda (x) 2)))
-; user=> (evaluar-de '(de f (x) (+ x 1)) '(x 1))
-; (f (x 1 f (lambda (x) (+ x 1))))
-; user=> (evaluar-de '(de f (x y) (+ x y)) '(x 1))
-; (f (x 1 f (lambda (x y) (+ x y))))
-; user=> (evaluar-de '(de f (x y) (prin3 x) (terpri) y) '(x 1))
-; (f (x 1 f (lambda (x y) (prin3 x) (terpri) y)))
-; user=> (evaluar-de '(de) '(x 1))
-; ((*error* list expected nil) (x 1))
-; user=> (evaluar-de '(de f) '(x 1))
-; ((*error* list expected nil) (x 1))
-; user=> (evaluar-de '(de f 2) '(x 1))
-; ((*error* list expected 2) (x 1))
-; user=> (evaluar-de '(de f 2 3) '(x 1))
-; ((*error* list expected 2) (x 1))
-; user=> (evaluar-de '(de (f)) '(x 1))
-; ((*error* list expected nil) (x 1))
-; user=> (evaluar-de '(de 2 x) '(x 1))
-; ((*error* list expected x) (x 1))
-; user=> (evaluar-de '(de 2 (x)) '(x 1))
-; ((*error* symbol expected 2) (x 1))
-; user=> (evaluar-de '(de nil (x) 2) '(x 1))
-; ((*error* cannot-set nil) (x 1))
+(defn build-fn [name body params]
+  "Builds the definition of a function in tlc lisp style."
+  (list name (filter some? (concat (list 'lambda params) body))))
+
+(defn validate-definition
+  "Validates the definition of a function in tlc lisp.
+  If it does not validate returns the exception, if it validates ok returns nil."
+  [definition amb]
+  (cond
+    (<= (count definition) 2) (list (list '*error* 'list 'expected nil) amb)
+    (not (coll? (nth definition 2))) (list (list '*error* 'list 'expected (nth definition 2)) amb)
+    (nil? (second definition)) (list (list '*error* 'cannot-set nil) amb)
+    (not (symbol? (second definition))) (list (list '*error* 'symbol 'expected (second definition)) amb)
+    (< (count definition) 2) (list (list '*error* 'list 'expected nil) amb)
+    :else nil))
+
 (defn evaluar-de
   "Evalua una forma 'de'. Devuelve una lista con el resultado y un ambiente actualizado con la definicion."
-  )
+  [definition amb]
+  (let [error-in-definition (validate-definition definition amb)]
+    (cond
+      (some? error-in-definition) error-in-definition
+      :else (let [name (second definition)
+                  params (nth definition 2)
+                  body (if (> (count  definition) 3) (take-last (- (count definition) 3) definition) nil)]
+              (list name (concat amb (build-fn name body params))))
+      )))
 
 
 ; user=> (evaluar-if '(if t) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
@@ -714,6 +712,7 @@
 ; (8 (gt gt nil nil t t v 1 w 3 x 6 m 8))
 (defn evaluar-if
   "Evalua una forma 'if'. Devuelve una lista con el resultado y un ambiente eventualmente modificado."
+  [expr amb-local amb-global]
   )
 
 
@@ -745,6 +744,7 @@
 ; (nil (nil nil t t w 5 x 4))
 (defn evaluar-or
   "Evalua una forma 'or'. Devuelve una lista con el resultado y un ambiente."
+  [expr amb-local amb-global]
   )
 
 
@@ -776,9 +776,10 @@
 ; (9 (nil nil t t + add w 5 x 7 y 8 z 9))
 (defn evaluar-setq
   "Evalua una forma 'setq'. Devuelve una lista con el resultado y un ambiente actualizado."
+  [expr amb-local amb-global]
   )
 
-
+'t
 ; Al terminar de cargar el archivo en el REPL de Clojure (con load-file), se debe devolver true.
 
 
