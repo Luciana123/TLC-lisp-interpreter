@@ -264,7 +264,6 @@
   (cond
     (igual? fnc 'add)     (fnc-add lae)
 
-    ; nota del profesor:
     ; Las funciones primitivas reciben argumentos y retornan un valor (son puras)
     (igual? fnc 'cons)    (fnc-cons lae)
     (igual? fnc 'first)   (fnc-first lae)
@@ -518,10 +517,11 @@
   [args]
   (let [screen-read (read)]
     (cond (not (empty? args)) (list '*error* 'not-implemented)
+          (symbol? screen-read) screen-read
           (= 'quote (first screen-read))
-          (if (empty? screen-read)
-            nil
-            (list '*error* 'not-implemented))
+            (if (empty? screen-read)
+              nil
+              (list '*error* 'not-implemented))
           :else screen-read))
   )
 
@@ -715,14 +715,20 @@
 
   )
 
+(defn actualizar-env-expressions
+  [amb-fijo result-and-amb-acc new-expr]
+  (let [accum-result (first result-and-amb-acc)
+        accum-env (second result-and-amb-acc)
+        new-elm (evaluar new-expr accum-env amb-fijo)]
+
+    (if (nil? (revisar-fnc new-elm))
+      (list (or accum-result (first new-elm)) (second new-elm))
+      (list accum-result (second new-elm)))))
 
 (defn evaluar-or
   "Evalua una forma 'or'. Devuelve una lista con el resultado y un ambiente."
   [expr amb-global amb-local]
-  (if (nil?
-        (first
-          (filter some? (rest expr)))) (list nil amb-global)
-                                       (evaluar (first (filter some? (rest expr))) amb-global amb-local))
+  (reduce (partial actualizar-env-expressions amb-local) (list nil amb-global) (rest expr))
   )
 
 (defn setq-partition [amb-global amb-local partition]
@@ -750,7 +756,6 @@
   )
 
 
-'t
 ; Al terminar de cargar el archivo en el REPL de Clojure (con load-file), se debe devolver true.
 
 
