@@ -3,5 +3,5 @@
             [tp-lisp-interpreter.core :refer :all]))
 
 (deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 1 0))))
+  (testing "Hello test"
+    (is (= 1 1))))

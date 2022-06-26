@@ -110,8 +110,6 @@
     (cond
       (not (seq? expre))             (evaluar-escalar expre amb-global amb-local)
 
-      ; Nota del profesor:
-
       ; Si la expresion no es la aplicacion de una funcion (es una forma especial, una macro...) debe ser evaluada aqui
       ; por una funcion de Clojure especifica debido a que puede ser necesario evitar la evaluacion de los argumentos
 
@@ -676,108 +674,81 @@
       )))
 
 
-; user=> (evaluar-if '(if t) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (nil (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if 7) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (nil (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if nil) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (nil (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if x) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (nil (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if t 9) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (9 (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if z 9) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (9 (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if w 9) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (9 (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if r 9) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; ((*error* unbound-symbol r) (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if nil 9) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (nil (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if nil 9 z) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; ("hola" (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if nil 9 1 2 3 z) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; ("hola" (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if nil 9 w) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (3 (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if nil 9 8) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (8 (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if nil a 8) '(nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (8 (nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if (gt 2 0) a 8) '(gt gt nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; ((*error* unbound-symbol a) (gt gt nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if (gt 0 2) a 8) '(gt gt nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (8 (gt gt nil nil t t v 1 w 3 x 6))
-; user=> (evaluar-if '(if (gt 0 2) a (setq m 8)) '(gt gt nil nil t t v 1 w 3 x 6) '(x 5 y 11 z "hola"))
-; (8 (gt gt nil nil t t v 1 w 3 x 6 m 8))
+(defn is-true [condition]
+  "If condition is different from nil, then it's true"
+  (not (nil? condition)))
+
+(defn evaluate-if-branch
+  [if-condition t-st f-st amb-global amb-local]
+  (if (is-true (first (evaluar
+                        if-condition amb-global amb-local)))
+    (evaluar t-st amb-global amb-local)
+    (evaluar f-st amb-global amb-local)
+    )
+  )
+
 (defn evaluar-if
   "Evalua una forma 'if'. Devuelve una lista con el resultado y un ambiente eventualmente modificado."
-  [expr amb-local amb-global]
+  [expression amb-global amb-local]
+  (let [if-statement (second expression)
+        true-statement (nth expression 2 nil)
+        false-statement (if (> (count expression) 3) (first (take-last 1 expression)) nil)]
+
+    (cond (symbol? if-statement)
+
+          (let [searched-symbol (first (search-symbol if-statement amb-global amb-local))]
+            (if (nil? (revisar-fnc searched-symbol))
+              (evaluate-if-branch searched-symbol
+                                  true-statement
+                                  false-statement
+                                  amb-global
+                                  amb-local)
+              (list searched-symbol amb-global)
+              )
+            )
+
+          :else (evaluate-if-branch if-statement
+                                    true-statement
+                                    false-statement
+                                    amb-global
+                                    amb-local)))
+
   )
 
 
-; user=> (evaluar-or '(or) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (nil (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or nil) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (nil (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or t) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (t (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or w) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (5 (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or r) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; ((*error* unbound-symbol r) (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or y) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (nil (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or 6) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (6 (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or nil 6) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (6 (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or (setq b 8) nil) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (8 (nil nil t t w 5 x 4 b 8))
-; user=> (evaluar-or '(or nil 6 nil) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (6 (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or nil 6 r nil) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (6 (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or nil t r nil) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (t (nil nil t t w 5 x 4))
-; user=> (evaluar-or '(or nil nil nil nil) '(nil nil t t w 5 x 4) '(x 1 y nil z 3))
-; (nil (nil nil t t w 5 x 4))
 (defn evaluar-or
   "Evalua una forma 'or'. Devuelve una lista con el resultado y un ambiente."
-  [expr amb-local amb-global]
+  [expr amb-global amb-local]
+  (if (nil?
+        (first
+          (filter some? (rest expr)))) (list nil amb-global)
+                                       (evaluar (first (filter some? (rest expr))) amb-global amb-local))
   )
 
+(defn setq-partition [amb-global amb-local partition]
+  (cond (< (count partition) 2) (list '*error* 'list 'expected nil)
+        (nil? (first partition)) (list '*error* 'cannot-set nil)
+        (not (symbol? (first partition))) (list '*error* 'symbol 'expected (first partition))
+        :else (let [var-symbol (first partition)
+                    var-value (first (evaluar (second partition) amb-global amb-local))]
+                (list var-symbol var-value))))
 
-; user=> (evaluar-setq '(setq) '(nil nil t t + add w 5 x 4) '(x 1 y nil z 3))
-; ((*error* list expected nil) (nil nil t t + add w 5 x 4))
-; user=> (evaluar-setq '(setq m) '(nil nil t t + add w 5 x 4) '(x 1 y nil z 3))
-; ((*error* list expected nil) (nil nil t t + add w 5 x 4))
-; user=> (evaluar-setq '(setq m 7) '(nil nil t t + add w 5 x 4) '(x 1 y nil z 3))
-; (7 (nil nil t t + add w 5 x 4 m 7))
-; user=> (evaluar-setq '(setq x 7) '(nil nil t t + add w 5 x 4) '(x 1 y nil z 3))
-; (7 (nil nil t t + add w 5 x 7))
-; user=> (evaluar-setq '(setq x (+ x 1)) '(nil nil t t + add w 5 x 4) '(x 1 y nil z 3))
-; (2 (nil nil t t + add w 5 x 2))
-; user=> (evaluar-setq '(setq x (+ x 1)) '(nil nil t t + add w 5 x 4) '(y nil z 3))
-; (5 (nil nil t t + add w 5 x 5))
-; user=> (evaluar-setq '(setq nil) '(nil nil t t + add w 5 x 4) '(x 1 y nil z 3))
-; ((*error* list expected nil) (nil nil t t + add w 5 x 4))
-; user=> (evaluar-setq '(setq nil 7) '(nil nil t t + add w 5 x 4) '(x 1 y nil z 3))
-; ((*error* cannot-set nil) (nil nil t t + add w 5 x 4))
-; user=> (evaluar-setq '(setq 7 8) '(nil nil t t + add w 5 x 4) '(x 1 y nil z 3))
-; ((*error* symbol expected 7) (nil nil t t + add w 5 x 4))
-; user=> (evaluar-setq '(setq x 7 m (+ x 7)) '(nil nil t t + add w 5 x 4) '(x 1 y nil z 3))
-; (8 (nil nil t t + add w 5 x 7 m 8))
-; user=> (evaluar-setq '(setq x 7 m (+ x 7)) '(nil nil t t + add w 5 x 4) '(y nil z 3))
-; (14 (nil nil t t + add w 5 x 7 m 14))
-; user=> (evaluar-setq '(setq x 7 y) '(nil nil t t + add w 5 x 4) '(y nil z 3))
-; ((*error* list expected nil) (nil nil t t + add w 5 x 7))
-; user=> (evaluar-setq '(setq x 7 y 8 z 9) '(nil nil t t + add w 5 x 4) '(y nil z 3))
-; (9 (nil nil t t + add w 5 x 7 y 8 z 9))
+(defn actualizar-env-reduce [amb-fijo amb-acc pair]
+  (let [elm (setq-partition (second amb-acc) amb-fijo pair)]
+    (if (nil? (revisar-fnc elm))
+      (list (second elm) (actualizar-amb (second amb-acc) (first elm) (second elm)))
+      (list elm (second amb-acc))
+      )))
+
+
 (defn evaluar-setq
   "Evalua una forma 'setq'. Devuelve una lista con el resultado y un ambiente actualizado."
-  [expr amb-local amb-global]
+  [expr amb-global amb-local]
+  (if (<= (count expr) 1) (list '(*error* list expected nil) amb-global)
+                          (reduce (partial actualizar-env-reduce amb-local) (list nil amb-global)  (partition-all 2 (rest expr)))
+                          )
   )
+
 
 't
 ; Al terminar de cargar el archivo en el REPL de Clojure (con load-file), se debe devolver true.
