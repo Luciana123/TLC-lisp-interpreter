@@ -457,13 +457,17 @@
     pair)
   )
 
+(defn contains [find collection]
+  (some true? (map #(igual? find (first %1)) (partition 2 collection)))
+  )
+
 (defn actualizar-amb
   "Devuelve un ambiente actualizado con una clave (nombre de la variable o funcion) y su valor.
   Si el valor es un error, el ambiente no se modifica. De lo contrario, se le carga o reemplaza el valor."
   [amb symbol value]
   (cond (error? value) amb
         (empty? amb) (list symbol value)
-        (some #{symbol} amb) (apply concat (map (partial replace-if-match symbol value) (partition 2 amb)))
+        (contains symbol amb) (apply concat (map (partial replace-if-match symbol value) (partition 2 amb)))
         :else (seq (conj (vec amb) symbol value)))
   )
 
@@ -503,6 +507,12 @@
 
 
 (defn transf-bool [boolean] (if boolean 't nil))
+(defn de-transf-bool [lisp-bool]
+  "From TCL-Lisp boolean (nil/NILL, t/T) to clojure boolean (true false).
+  If lisp-bool is not a boolean then return the value"
+  (cond (igual? lisp-bool 'NIL) nil
+        (igual? lisp-bool 't) true
+        :else lisp-bool))
 
 (defn fnc-equal
   "Compara 2 elementos. Si son iguales, devuelve t. Si no, nil."
@@ -518,6 +528,7 @@
   (let [screen-read (read)]
     (cond (not (empty? args)) (list '*error* 'not-implemented)
           (symbol? screen-read) screen-read
+          (not (coll? screen-read)) screen-read
           (= 'quote (first screen-read))
             (if (empty? screen-read)
               nil
@@ -601,13 +612,12 @@
   (eval-condition l >=)
   )
 
-
 (defn fnc-reverse
   "Devuelve una lista con sus elementos en orden inverso."
   [l]
   (let [ari (controlar-aridad l 1)]
     (cond (seq? ari) ari
-          (coll? (first l)) (reverse (flatten l))
+          (coll? (first l)) (reverse (first l))
           :else (list '*error* 'list 'expected (first l)))
     ))
 
@@ -715,6 +725,9 @@
 
   )
 
+(defn sanitize-result [r]
+  (if (boolean? r) (transf-bool r) r))
+
 (defn actualizar-env-expressions
   [amb-fijo result-and-amb-acc new-expr]
   (let [accum-result (first result-and-amb-acc)
@@ -722,7 +735,7 @@
         new-elm (evaluar new-expr accum-env amb-fijo)]
 
     (if (nil? (revisar-fnc new-elm))
-      (list (or accum-result (first new-elm)) (second new-elm))
+      (list (sanitize-result (or accum-result (de-transf-bool(first new-elm)))) (second new-elm))
       (list accum-result (second new-elm)))))
 
 (defn evaluar-or
