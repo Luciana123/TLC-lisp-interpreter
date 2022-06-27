@@ -23,3 +23,13 @@ lein run
 >>> (load 'jarras)
 >>> (breadth-first bc)
 ```
+
+Final and initial state must be completed as pair lists:
+```
+Ingrese el estado inicial: (0 0)
+Ingrese el estado   final: (0 4)
+```
+
+After a little while the program should reach a solution.
+
+To leave the interpreter use `(exit)`
