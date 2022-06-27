@@ -298,3 +298,25 @@
     (is (= (evaluar-setq '(setq x 7 y 8 z 9) '(nil nil t t + add w 5 x 4) '(y nil z 3)) '(9 (nil nil t t + add w 5 x 7 y 8 z 9))))
     ))
 
+(deftest fnc-read-test
+  (testing "fnc read test."
+    (is (= (with-in-str "1" (fnc-read ())) 1))
+    (is (= (with-in-str "a" (fnc-read ())) 'a))
+    (is (= (with-in-str "\"hola\"" (fnc-read ())) "hola"))
+    (is (= (with-in-str "(hola mundo)" (fnc-read ())) '(hola mundo)))
+    (is (= (with-in-str "(hola\nmundo)" (fnc-read ())) '(hola mundo)))
+    (is (= (with-in-str "()" (fnc-read ())) nil))
+    (is (= (with-in-str "nil" (fnc-read ())) nil))
+    (is (= (with-in-str "1" (fnc-read '(1))) '(*error* not-implemented)))
+    (is (= (with-in-str "1" (fnc-read '(1 2))) '(*error* not-implemented)))
+    )
+  )
+
+(deftest fnc-terpri-test
+  (testing "fnc terpri test."
+    (is (=  (fnc-terpri ()) nil))
+    (is (= (with-out-str (fnc-terpri ())) "\n"))
+    (is (= (fnc-terpri '(1)) '(*error* not-implemented)))
+    (is (= (fnc-terpri '(1 2)) '(*error* not-implemented)))
+    )
+  )

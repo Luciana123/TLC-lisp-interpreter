@@ -529,6 +529,7 @@
     (cond (not (empty? args)) (list '*error* 'not-implemented)
           (symbol? screen-read) screen-read
           (not (coll? screen-read)) screen-read
+          (empty? screen-read) nil
           (= 'quote (first screen-read))
             (if (empty? screen-read)
               nil
